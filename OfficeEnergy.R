@@ -1,5 +1,5 @@
 ## ---------------------------------------------------------------
-## Fictional Office Energy Curve — MAIN branch
+## Fictional Office Energy Curve — DEV branch
 ## A tongue-in-cheek animated plot of a made-up "energy level"
 ## across a workday, purely for practicing PRs / merge conflicts.
 ## ---------------------------------------------------------------
@@ -11,17 +11,23 @@ library(dplyr)
 set.seed(42)
 
 ## --- 1. Fake data ------------------------------------------------
-person <- "Lulu"
+person <- c("Lulu", "Caillou", "Melissa", "Max")
 hours <- seq(8, 18, by = 0.25)
 
-energy <- 60 +
-  20 * sin((hours - 8) / 10 * pi) -
-  10 * (hours > 13 & hours < 14.5) +
-  rnorm(length(hours), sd = 4)
+make_energy <- function(phase, noise_sd) {
+  60 +
+    20 * sin((hours - 8) / 10 * pi + phase) -
+    10 * (hours > 13 & hours < 14.5) +
+    rnorm(length(hours), sd = noise_sd)
+}
 
-energy <- pmin(pmax(energy, 0), 100)
-
-df <- data.frame(hour = hours, energy = energy)
+df <- bind_rows(lapply(seq_along(person), function(i) {
+  data.frame(
+    hour = hours,
+    energy = pmin(pmax(make_energy(phase = i * 0.6, noise_sd = 4), 0), 100),
+    person = person[i]
+  )
+}))
 
 ## --- 2. Annotations at key moments --------------------------------
 annotations <- data.frame(
@@ -35,14 +41,13 @@ annotations <- data.frame(
 )
 
 ## --- 3. Colour palette ---------------------------------------------
-low_colour <- "#2980B9"
-high_colour <- "#E74C3C"
+person_colours <- c("#26547c", "#ef476f", "#ffd166", "#06d6a0")
 
 ## --- 4. Plot ---------------------------------------------------------
-p <- ggplot(df, aes(x = hour, y = energy)) +
-  geom_line(aes(colour = energy), linewidth = 1) +
-  geom_point(aes(colour = energy), size = 2) +
-  scale_colour_gradient(low = low_colour, high = high_colour, name = "Energy") +
+p <- ggplot(df, aes(x = hour, y = energy, colour = person, group = person)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2) +
+  scale_colour_manual(values = person_colours, name = "Person") +
   geom_label(
     data = annotations,
     aes(x = hour, y = energy, label = label, group = label),
@@ -53,7 +58,7 @@ p <- ggplot(df, aes(x = hour, y = energy)) +
     inherit.aes = FALSE
   ) +
   labs(
-    title = paste("How much does", person, "have over the day", sep = " "),
+    title = paste("How much energy do", paste(person, collapse = ", "), "have over the day"),
     subtitle = "A completely unscientific simulation",
     x = "Hour of day",
     y = "Energy (%)"
@@ -81,4 +86,4 @@ animate(
   end_pause = 15
 )
 
-# anim_save("energy_curve_main.gif")
+# anim_save("energy_curve_dev.gif")
